@@ -1,0 +1,16 @@
+{
+  "core": [
+    "curl",
+    "git",
+    "jq",
+    "nginx",
+    "certbot",
+    "python3-certbot-nginx"
+  ],
+  "browser": [],
+  "python": [],
+  "node": [
+    "nodejs",
+    "npm"
+  ]
+}

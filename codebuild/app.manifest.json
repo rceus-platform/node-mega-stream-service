@@ -1,0 +1,11 @@
+{
+  "runtime": "node",
+  "working_dir": "application-source",
+  "start_command": "index.js",
+  "port": 4000,
+  "domain": "mega-stream-service.rceus.duckdns.org",
+  "timezone": "Asia/Kolkata",
+  "env_vars": [
+    "INTERNAL_SECRET"
+  ]
+}

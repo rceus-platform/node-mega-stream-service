@@ -1,0 +1,12 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Node: Mega Stream Service",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/application-source/index.js",
+            "console": "integratedTerminal"
+        }
+    ]
+}
