@@ -1,7 +1,7 @@
 {
   "runtime": "node",
   "working_dir": "application-source",
-  "start_command": "node --max-old-space-size=256 index.js",
+  "start_command": "index.js",
   "port": 4000,
   "domain": "mega-stream-service.rceus.duckdns.org",
   "timezone": "Asia/Kolkata",
