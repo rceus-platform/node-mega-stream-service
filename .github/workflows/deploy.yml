@@ -1,0 +1,80 @@
+name: Deploy App
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: application-source/package-lock.json
+
+      - name: Install dependencies
+        working-directory: application-source
+        run: npm install
+
+      - name: Run tests
+        working-directory: application-source
+        run: npm run test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy and Configure
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          envs: GITHUB_REPOSITORY,INTERNAL_SECRET
+          script: |
+            set -e
+
+            APP_NAME="$(basename $GITHUB_REPOSITORY)"
+            APP_DIR="/opt/apps/$APP_NAME"
+            SECRET_PATH="/opt/secrets/${APP_NAME}.json"
+
+            echo "➡ Injecting secrets for $APP_NAME"
+            sudo mkdir -p /opt/secrets
+
+            echo "➡ Deploying $APP_NAME"
+
+            # Ensure the app directory exists (first time setup)
+            if [ ! -d "$APP_DIR" ]; then
+              echo "🆕 First time setup. Cloning repository..."
+              sudo mkdir -p /opt/apps
+              sudo chown -R $USER:$USER /opt/apps
+              git clone "https://github.com/$GITHUB_REPOSITORY.git" "$APP_DIR"
+              cd "$APP_DIR"
+            else
+              cd "$APP_DIR"
+              echo "🧹 Cleaning and updating code"
+              git fetch origin main
+              git reset --hard origin/main
+            fi
+
+            echo "➡ Handover to standardized create_app.sh"
+            export APP_NAME
+            export INTERNAL_SECRET
+            export APP_SECRET_PATH="$SECRET_PATH"
+            sudo -E bash codebuild/create_app.sh
+
+            echo "✅ Deploy completed successfully"
+        env:
+          INTERNAL_SECRET: ${{ secrets.INTERNAL_SECRET }}
