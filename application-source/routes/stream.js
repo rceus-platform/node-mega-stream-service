@@ -66,8 +66,11 @@ export const handleStream = async (req, res) => {
         // 5. Download Stream Initialization
         const stream = file.download({ start, end });
         let bytesTransferred = 0;
+        let clientDisconnected = false;
 
         stream.once("data", (chunk) => {
+            if (clientDisconnected || res.destroyed) return;
+
             bytesTransferred += chunk.length;
             const isImage = file.name.toLowerCase().endsWith(".png") ||
                             file.name.toLowerCase().endsWith(".jpg") ||
@@ -92,37 +95,53 @@ export const handleStream = async (req, res) => {
 
         // 6. Request Lifecycle Management
         req.on("close", () => {
+            clientDisconnected = true;
             if (stream && typeof stream.destroy === "function") {
                 stream.destroy();
             }
         });
 
         stream.once("end", () => {
-            if (bytesTransferred === 0) {
+            if (bytesTransferred === 0 && !res.writableEnded && !res.destroyed) {
                 res.status(502).json({ error: "Upstream MEGA server returned no data" });
             }
         });
 
-        stream.once("error", (err) => {
+        stream.on("error", (err) => {
+            // Log the error but don't evict if it was caused by a client-side disconnect
+            if (clientDisconnected || res.destroyed) {
+                console.log("[mega-stream] Stream ended due to client disconnect (ignore error)");
+                return;
+            }
+
             console.error("[mega-stream] Stream delivery error:", err);
             evictSession(email);
-            if (bytesTransferred === 0) {
+
+            if (bytesTransferred === 0 && !res.headersSent) {
                 const error = "Failed to establish stream connection with MEGA";
-                return res.status(502).json({ error });
+                res.status(502).json({ error });
+            } else if (!res.writableEnded) {
+                res.end();
             }
-            res.end();
         });
 
     } catch (err) {
         console.error("[mega-stream] Request handling exception:", err);
-        evictSession(email);
-
+        
         const errMsg = err?.message || String(err);
-        if (errMsg.includes("Wrong password") || errMsg.includes("ENOENT")) {
-            const error = "Authentication failed or storage session expired";
-            return res.status(401).json({ error });
+        // Only evict on actual authentication or system errors
+        if (errMsg.includes("Wrong password") || errMsg.includes("ENOENT") || 
+            errMsg.includes("EAGAIN") || errMsg.includes("ECONN")) {
+            evictSession(email);
         }
 
-        return res.status(500).json({ error: `Streaming system error: ${errMsg}` });
+        if (!res.headersSent) {
+            if (errMsg.includes("Wrong password") || errMsg.includes("ENOENT")) {
+                return res.status(401).json({ error: "Authentication failed or storage session expired" });
+            }
+            return res.status(500).json({ error: `Streaming system error: ${errMsg}` });
+        } else if (!res.writableEnded) {
+            res.end();
+        }
     }
 };
