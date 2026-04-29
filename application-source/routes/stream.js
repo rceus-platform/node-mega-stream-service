@@ -129,9 +129,10 @@ export const handleStream = async (req, res) => {
         console.error("[mega-stream] Request handling exception:", err);
         
         const errMsg = err?.message || String(err);
-        // Only evict on actual authentication or system errors
+        // Only evict on actual authentication, system errors, or blocks
         if (errMsg.includes("Wrong password") || errMsg.includes("ENOENT") || 
-            errMsg.includes("EAGAIN") || errMsg.includes("ECONN")) {
+            errMsg.includes("EAGAIN") || errMsg.includes("ECONN") ||
+            errMsg.includes("EBLOCKED")) {
             evictSession(email);
         }
 
