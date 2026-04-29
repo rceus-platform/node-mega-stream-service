@@ -5,7 +5,7 @@
             "name": "Node: Mega Stream Service",
             "type": "node",
             "request": "launch",
-            "program": "${workspaceFolder}/application-source/index.js",
+            "program": "${workspaceFolder}/application-source/src/index.ts",
             "console": "integratedTerminal"
         }
     ]

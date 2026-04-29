@@ -10,7 +10,8 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { getQueryParam, validateInternalSecret } from "./helpers.js";
+import { Request } from "express";
+import { getQueryParam, validateInternalSecret } from "../utils/helpers.js";
 
 describe("Helpers Module", () => {
     describe("getQueryParam", () => {
@@ -27,18 +28,18 @@ describe("Helpers Module", () => {
 
     describe("validateInternalSecret", () => {
         it("should return true if no secret is configured", () => {
-            const req = { headers: {} };
-            expect(validateInternalSecret(req, "")).toBe(true);
+            const req = { headers: {} } as Partial<Request>;
+            expect(validateInternalSecret(req as Request, "")).toBe(true);
         });
 
         it("should return true if header matches configured secret", () => {
-            const req = { headers: { "x-internal-secret": "topsecret" } };
-            expect(validateInternalSecret(req, "topsecret")).toBe(true);
+            const req = { headers: { "x-internal-secret": "topsecret" } } as Partial<Request>;
+            expect(validateInternalSecret(req as Request, "topsecret")).toBe(true);
         });
 
         it("should return false if header does not match configured secret", () => {
-            const req = { headers: { "x-internal-secret": "wrong" } };
-            expect(validateInternalSecret(req, "topsecret")).toBe(false);
+            const req = { headers: { "x-internal-secret": "wrong" } } as Partial<Request>;
+            expect(validateInternalSecret(req as Request, "topsecret")).toBe(false);
         });
     });
 });

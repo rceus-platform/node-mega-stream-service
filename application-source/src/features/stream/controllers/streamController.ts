@@ -10,20 +10,21 @@
  * - Does not handle server initialization or environment configuration
  */
 
-import { getQueryParam, validateInternalSecret } from "../utils/helpers.js";
+import { Request, Response } from "express";
+import { getQueryParam, validateInternalSecret } from "../../../utils/helpers.js";
 import { getOrCreateSession, evictSession } from "../services/megaService.js";
-import { INTERNAL_SECRET } from "../config.js";
+import { INTERNAL_SECRET } from "../../../config.js";
 
 /** Main handler for the /stream endpoint */
-export const handleStream = async (req, res) => {
+export const handleStream = async (req: Request, res: Response): Promise<void | Response> => {
     // 1. Security Check
     if (!validateInternalSecret(req, INTERNAL_SECRET)) {
         return res.status(403).json({ error: "Forbidden: missing or invalid internal secret" });
     }
 
     // 2. Parameter Extraction (Prefer headers for security and character encoding stability)
-    const email = req.headers["x-mega-email"] || getQueryParam(req.query.email);
-    const password = req.headers["x-mega-password"] || getQueryParam(req.query.password);
+    const email = (req.headers["x-mega-email"] as string) || getQueryParam(req.query.email);
+    const password = (req.headers["x-mega-password"] as string) || getQueryParam(req.query.password);
     const fileId = getQueryParam(req.query.fileId);
 
     if (!email || !password || !fileId) {
@@ -68,18 +69,19 @@ export const handleStream = async (req, res) => {
         let bytesTransferred = 0;
         let clientDisconnected = false;
 
-        stream.once("data", (chunk) => {
+        stream.once("data", (chunk: Buffer) => {
             if (clientDisconnected || res.destroyed) return;
 
             bytesTransferred += chunk.length;
-            const isImage = file.name.toLowerCase().endsWith(".png") ||
-                            file.name.toLowerCase().endsWith(".jpg") ||
-                            file.name.toLowerCase().endsWith(".jpeg") ||
-                            file.name.toLowerCase().endsWith(".webp");
+            const fileName = file.name.toLowerCase();
+            const isImage = fileName.endsWith(".png") ||
+                            fileName.endsWith(".jpg") ||
+                            fileName.endsWith(".jpeg") ||
+                            fileName.endsWith(".webp");
 
             const contentType = isImage ?
-                               (file.name.toLowerCase().endsWith(".png") ? "image/png" :
-                                file.name.toLowerCase().endsWith(".webp") ? "image/webp" :
+                               (fileName.endsWith(".png") ? "image/png" :
+                                fileName.endsWith(".webp") ? "image/webp" :
                                 "image/jpeg") : "video/mp4";
 
             const contentRange = `bytes ${start}-${end}/${fileSize}`;
@@ -107,7 +109,7 @@ export const handleStream = async (req, res) => {
             }
         });
 
-        stream.on("error", (err) => {
+        stream.on("error", (err: Error) => {
             // Log the error but don't evict if it was caused by a client-side disconnect
             if (clientDisconnected || res.destroyed) {
                 console.log("[mega-stream] Stream ended due to client disconnect (ignore error)");
@@ -125,10 +127,11 @@ export const handleStream = async (req, res) => {
             }
         });
 
-    } catch (err) {
-        console.error("[mega-stream] Request handling exception:", err);
+    } catch (err: unknown) {
+        const error = err as Error;
+        console.error("[mega-stream] Request handling exception:", error);
         
-        const errMsg = err?.message || String(err);
+        const errMsg = error?.message || String(error);
         // Only evict on actual authentication, system errors, or blocks
         if (errMsg.includes("Wrong password") || errMsg.includes("ENOENT") || 
             errMsg.includes("EAGAIN") || errMsg.includes("ECONN") ||

@@ -10,14 +10,14 @@
  * - Does not handle business logic, streaming, or environment parsing directly
  */
 
-import express from "express";
+import express, { Request, Response } from "express";
 import { PORT } from "./config.js";
-import { handleStream } from "./routes/stream.js";
+import { handleStream } from "./features/stream/index.js";
 
 const app = express();
 
 /** Health check endpoint */
-app.get("/health", (req, res) => res.status(200).send("OK"));
+app.get("/health", (_req: Request, res: Response) => res.status(200).send("OK"));
 
 /** Main streaming endpoint */
 app.get("/stream", handleStream);

@@ -14,7 +14,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 /** Internal secret for inter-service authentication */
-export const INTERNAL_SECRET = process.env.INTERNAL_SECRET ?? "";
+export const INTERNAL_SECRET: string = process.env.INTERNAL_SECRET ?? "";
 
 /** Port for the service to listen on */
-export const PORT = process.env.PORT || 4000;
+export const PORT: string | number = process.env.PORT || 4000;

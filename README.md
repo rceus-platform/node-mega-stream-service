@@ -44,8 +44,11 @@ npm install
 ### Running the Service
 
 ```bash
-# Start the server
-node index.js
+# Start the server (development)
+npm run dev
+
+# Start the server (production)
+npm start
 ```
 
 ### Running Tests
@@ -73,13 +76,13 @@ npm run test
 
 ## Architecture
 
-The service follows a modular structure within the `application-source` directory:
+The service follows a domain-driven feature structure within the `application-source/src` directory:
 
-- `index.js`: Service entry point and route mounting.
-- `routes/`: Express route handlers (streaming logic).
-- `services/`: Core business logic (MEGA session management).
-- `utils/`: Helper functions and security validation.
-- `config.js`: Centralized configuration and environment parsing.
+- `index.ts`: Service entry point and route mounting.
+- `features/`: Domain-specific logic (e.g., streaming).
+- `services/`: Infrastructure services (e.g., API clients).
+- `config.ts`: Centralized configuration and environment parsing.
+- `utils/`: Shared utility functions.
 
 ## License
 

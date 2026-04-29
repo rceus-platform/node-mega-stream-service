@@ -12,39 +12,51 @@
  */
 
 import { Storage } from "megajs";
+import { MegaStorage, FailureState } from "../types.js";
 
 /** email -> resolved Storage instance cache */
-const sessionCache = new Map();
+const sessionCache = new Map<string, MegaStorage>();
 
 /** email -> { expiry: number, error: string } cache for failed logins */
-const failureCache = new Map();
+const failureCache = new Map<string, FailureState>();
 
 /** email -> Promise<Storage> for in-flight login attempts (coalesces concurrent requests) */
-const pendingLogins = new Map();
+const pendingLogins = new Map<string, Promise<MegaStorage>>();
 
-const LOCKOUT_EBLOCKED = 60 * 60 * 1000; // 1 hour — MEGA blocks are severe
-const LOCKOUT_DEFAULT = 5 * 60 * 1000;   // 5 minutes
+/** 1 hour — MEGA blocks are severe */
+const LOCKOUT_EBLOCKED = 60 * 60 * 1000;
+/** 5 minutes */
+const LOCKOUT_DEFAULT = 5 * 60 * 1000;
 
 /** Internal helper to perform MEGA login */
-function loginToMega(email, password) {
+function loginToMega(email: string, password: string): Promise<MegaStorage> {
     return new Promise((resolve, reject) => {
-        const storage = new Storage({ email, password }, (err, readyStorage) => {
+        // Use unknown conversion to bypass the missing/incorrect types of the third-party library
+        // while remaining strictly typed within our own boundaries.
+        const StorageConstructor = Storage as unknown as { 
+            new(options: { email: string; password?: string }, cb: (err: Error | null, storage: unknown) => void): unknown 
+        };
+        
+        const storage = new StorageConstructor({ email, password }, (err: Error | null, readyStorage: unknown) => {
             if (err) {
                 reject(err);
                 return;
             }
-            resolve(readyStorage);
+            resolve(readyStorage as unknown as MegaStorage);
         });
 
-        storage.on("error", reject);
+        (storage as unknown as MegaStorage).on("error", (err?: Error) => {
+            if (err) reject(err);
+        });
     });
 }
 
 /** Retrieve an existing session or initiate a new login */
-export async function getOrCreateSession(email, password) {
+export async function getOrCreateSession(email: string, password: string): Promise<MegaStorage> {
     // 1. Return resolved session if available
-    if (sessionCache.has(email)) {
-        return sessionCache.get(email);
+    const cached = sessionCache.get(email);
+    if (cached) {
+        return cached;
     }
 
     // 2. Check for lockout (failed login cooldown)
@@ -58,8 +70,9 @@ export async function getOrCreateSession(email, password) {
     }
 
     // 3. Coalesce concurrent login attempts — only ONE login call per email
-    if (pendingLogins.has(email)) {
-        return pendingLogins.get(email);
+    const pending = pendingLogins.get(email);
+    if (pending) {
+        return pending;
     }
 
     console.log(`[mega-stream] Initiating first login for ${email}`);
@@ -90,7 +103,7 @@ export async function getOrCreateSession(email, password) {
 }
 
 /** Remove a session from cache to force re-authentication */
-export function evictSession(email) {
+export function evictSession(email: string): void {
     if (sessionCache.has(email)) {
         console.warn(`[mega-stream] Evicting session for ${email}`);
         sessionCache.delete(email);
