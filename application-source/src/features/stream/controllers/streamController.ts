@@ -15,6 +15,33 @@ import { getQueryParam, validateInternalSecret } from "../../../utils/helpers.js
 import { getOrCreateSession, evictSession } from "../services/megaService.js";
 import { INTERNAL_SECRET } from "../../../config.js";
 
+function inferMimeType(fileName: string): string {
+    const normalized = fileName.toLowerCase();
+    const ext = normalized.includes(".") ? normalized.slice(normalized.lastIndexOf(".")) : "";
+
+    const mimeMap: Record<string, string> = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".gif": "image/gif",
+        ".bmp": "image/bmp",
+        ".svg": "image/svg+xml",
+        ".mp4": "video/mp4",
+        ".m4v": "video/x-m4v",
+        ".mov": "video/quicktime",
+        ".mkv": "video/x-matroska",
+        ".webm": "video/webm",
+        ".avi": "video/x-msvideo",
+        ".ogv": "video/ogg",
+        ".mpeg": "video/mpeg",
+        ".mpg": "video/mpeg",
+        ".ts": "video/mp2t",
+    };
+
+    return mimeMap[ext] || "application/octet-stream";
+}
+
 /** Main handler for the /stream endpoint */
 export const handleStream = async (req: Request, res: Response): Promise<void | Response> => {
     // 1. Security Check
@@ -73,16 +100,7 @@ export const handleStream = async (req: Request, res: Response): Promise<void | 
             if (clientDisconnected || res.destroyed) return;
 
             bytesTransferred += chunk.length;
-            const fileName = file.name.toLowerCase();
-            const isImage = fileName.endsWith(".png") ||
-                            fileName.endsWith(".jpg") ||
-                            fileName.endsWith(".jpeg") ||
-                            fileName.endsWith(".webp");
-
-            const contentType = isImage ?
-                               (fileName.endsWith(".png") ? "image/png" :
-                                fileName.endsWith(".webp") ? "image/webp" :
-                                "image/jpeg") : "video/mp4";
+            const contentType = inferMimeType(file.name);
 
             const contentRange = `bytes ${start}-${end}/${fileSize}`;
             res.writeHead(statusCode, {
