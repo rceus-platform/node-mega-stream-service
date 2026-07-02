@@ -17,15 +17,24 @@ import { Request, Response } from "express";
 vi.mock("express", () => {
     const mockApp = {
         get: vi.fn(),
+        post: vi.fn(),
+        use: vi.fn(),
         listen: vi.fn((_port, cb) => cb && cb()),
     };
-    const mockExpress = vi.fn(() => mockApp);
+    const mockExpress = vi.fn(() => mockApp) as any;
+    mockExpress.json = vi.fn();
     return { default: mockExpress };
 });
 
 // Mock dependencies to avoid side effects
 vi.mock("../config.js", () => ({ PORT: 4000 }));
 vi.mock("../features/stream/index.js", () => ({ handleStream: vi.fn() }));
+vi.mock("../features/storage/index.js", () => ({
+    handleStorageCopy: vi.fn(),
+    handleStorageDelete: vi.fn(),
+    handleStorageMove: vi.fn(),
+    handleStorageRename: vi.fn(),
+}));
 
 describe("Index Module", () => {
     it("should initialize express and register routes", async () => {
